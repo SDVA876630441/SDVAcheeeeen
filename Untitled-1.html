@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+    <head>
+		<title>方向键控制div[贪吃蛇]</title>
+        <meta charset="utf-8"/>
+        <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+        <style type="text/css">
+            body
+            {
+                text-align:center;
+            }
+            #Game
+            {
+                width: 1000px;
+                height: 500px;
+                border: 5px solid #FF0;
+                margin: 50px auto;
+                padding: 0;
+            }
+            #block
+            {
+                width: 20px;
+                height: 20px;
+                background: #000;
+                position: absolute;
+                z-index: 999;
+                margin: 0;
+                padding: 0;
+            }
+            #PickUp
+            {
+                width: 20px;
+                height: 20px;
+                border: 0px dashed #F00;
+                position: absolute;
+                margin: 0;
+            }
+            .Score
+            {
+                width: 20px;
+                height: 20px;
+                background: #F00;
+                position: absolute;
+                z-index: -1;
+                margin: 0;
+                padding: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <p id="Direction">当前行走方向: [未开始]</p>
+        <p id="Speed">当前速度等级: 0</p>
+        <p id="ScoreList">当前得分: 0</p>
+        <div id="Game">
+            <div id="PickUp"></div>
+            <div id="block"></div>
+        </div>
+    </body>
+    <script type="text/javascript">
+        var Game;//游戏计时器，用来判断输赢加分等
+        var GameMove;//游戏运行时方块移动的计时器
+        var num = 3;//游戏开始时，第一次走的方向[游戏开始时会随机一个0~3的值]
+        var speed = 1;//速度值
+        var Score = 0;//分数
+        var ScoreInterval = 1000;//间隔多少毫秒才允许生成下一个分数方块，单位为毫秒
+        var ScoreTime = 0;//已达到间隔时间多少毫秒
+        var GameL = $("#Game").offset().left+parseInt($("#Game").css("border-left-width"));//游戏区域的左
+        var GameR = GameL+$("#Game").width();//游戏区域的右
+        var GameU = $("#Game").offset().top+parseInt($("#Game").css("border-top-width"));//游戏区域的上
+        var GameD = GameU+$("#Game").height();//游戏区域的下
+        var PickUpL = 5;//增加的拾取范围[左]
+        var PickUpR = 5;//增加的拾取范围[右]
+        var PickUpU = 5;//增加的拾取范围[上]
+        var PickUpD = 5;//增加的拾取范围[下]
+        var PickUpLookFalg = true;//是否显示拾取范围
+        var MaxScoreLength = 3;//最大同时出现分数方块的个数
+        $(function()
+        {
+            //$("#block").css("box-shadow","0 0 0 10px #03A9F4");
+            //游戏开始
+            //alert("点击确定游戏开始");
+            ReloadGame();
+            Game = setInterval(GameStact,1);
+            GameMove = setInterval(BlockMove,1);
+        });
+        function ReloadGame()
+        {
+            //初始化位置到中心
+            $("#block").css("top",(GameD+GameU)/2);
+            $("#block").css("left",(GameR+GameL)/2);
+
+            //游戏重置，清空分数方块
+            for(let a = 0,b = $(".Score").length;a < b;a++)
+            {
+                $(".Score:eq("+a+")").remove();
+            }
+
+            //拾取范围显示设置
+            // $("#PickUp").css("left",parseInt($("#block").css("left"))-($("#PickUp").outerWidth()-$("#PickUp").width())/2);
+            // $("#PickUp").css("top",parseInt($("#block").css("top"))-($("#PickUp").outerHeight()-$("#PickUp").height())/2);
+            $("#PickUp").css("left",parseInt($("#block").css("left"))-PickUpL);
+            $("#PickUp").css("top",parseInt($("#block").css("top"))-PickUpU);
+            if(PickUpLookFalg)
+            {
+                if(PickUpL > 0)
+                {
+                    $("#PickUp").css("border-left-width","1px");
+                    $("#PickUp").css("padding-left",PickUpL-1+"px");
+                }
+                if(PickUpR > 0)
+                {
+                    $("#PickUp").css("border-right-width","1px");
+                    $("#PickUp").css("padding-right",PickUpR-1+"px");
+                }
+                if(PickUpU > 0)
+                {
+                    $("#PickUp").css("border-top-width","1px");
+                    $("#PickUp").css("padding-top",PickUpU-1+"px");
+                }
+                if(PickUpD > 0)
+                {
+                    $("#PickUp").css("border-bottom-width","1px");
+                    $("#PickUp").css("padding-bottom",PickUpD-1+"px");
+                }
+            }
+            $("#Direction").text("当前行走方向: [未开始]");
+            $("#Speed").text("当前速度: 0");
+            $("#ScoreList").text("当前得分: 0");
+            speed = 1;
+            Score = 0;
+            /* Math.floor(Math.random() * ((max+1) - min)) + min */
+            num = Math.floor(Math.random() * ((3+1) - 0)) + 0;
+        }
+        function GameStact()
+        {
+            $("#Speed").text("当前速度等级: "+speed);
+            $("#ScoreList").text("当前得分: "+Score);
+            let blockLeft = parseInt($("#block").css("left"));
+            let blockTop = parseInt($("#block").css("top"));
+            let blockR = blockLeft+parseInt($("#block").width());
+            let blockD = blockTop+parseInt($("#block").height());
+            //if(parseInt($("#me").css("left")) <= -50 || parseInt($("#me").css("top")) <= -50)
+            let ScoreLength = $(".Score").length;//当前有的分数方块个数
+            //分数方块生成
+            if(ScoreLength < MaxScoreLength)
+            {
+                //console.log("已间隔:"+ScoreTime+"毫秒");
+                if(ScoreTime >= ScoreInterval)
+                {
+                    $("#Game").append("<div class=\"Score\"></div>");
+                    let ScoreLift = Math.floor(Math.random() * ((($("#Game").width()-parseInt($(".Score:eq("+ScoreLength+")").css("width")))+1) - 0)) + 0;//分数方块往水平方向随机偏移量
+                    let ScoreTop = Math.floor(Math.random() * (($("#Game").height()-parseInt($(".Score:eq("+ScoreLength+")").css("height"))+1) - 0)) + 0;//分数方块往高度方向随机偏移量
+                    $(".Score:eq("+ScoreLength+")").css("top",GameU+ScoreTop);
+                    $(".Score:eq("+ScoreLength+")").css("left",GameL+ScoreLift);
+                    ScoreLength = ScoreLength+1;//生成完后+1，防止下面for循环没生效，如果在生成瞬间碰到分数方块，没进for循环就会导致吃不到
+                    ScoreTime = 0;//将间隔时间重置
+                }
+                else
+                {
+                    ScoreTime++;
+                }
+            }
+            //检查是否吃到分数方块
+            for(let a = 0;a < ScoreLength;a++)
+            {
+                let ScoreLeft = parseInt($(".Score:eq("+a+")").css("left"));
+                let ScoreTop = parseInt($(".Score:eq("+a+")").css("top"));
+                let ScoreR = ScoreLeft+parseInt($(".Score:eq("+a+")").width());
+                let ScoreD = ScoreTop+parseInt($(".Score:eq("+a+")").height());
+                let BL = (blockLeft-PickUpL);
+                let BT = (blockTop-PickUpU);
+                let BR = (blockR+PickUpR);
+                let BD = (blockD+PickUpD);
+                let GetScoreFlag = false;
+                if(BL < ScoreLeft && BD < ScoreR)
+                {
+                    if(BR > ScoreLeft && BR > ScoreR)
+                    {
+                        if(BT < ScoreTop && BD > ScoreTop)
+                        {
+                            GetScoreFlag = true;
+                        }
+                        //else if(BT > ScoreTop && BD > ScoreTop)
+                        else if(BT > ScoreTop && BT < ScoreD)
+                        {
+                            GetScoreFlag = true;
+                        }
+                        else if(BT < ScoreTop && BD > ScoreD)
+                        {
+                            GetScoreFlag = true;
+                        }
+                    }
+                    else if(BR > ScoreLeft && BR < ScoreR)
+                    {
+                        if(BT < ScoreTop && BD > ScoreTop)
+                        {
+                            GetScoreFlag = true;
+                        }
+                        else if(BT > ScoreTop && BT < ScoreD)
+                        {
+                            GetScoreFlag = true;
+                        }
+                    }
+                }
+                else if(BL > ScoreLeft && BL < ScoreR)
+                {
+                    if(BT < ScoreTop && BD > ScoreTop)
+                    {
+                        GetScoreFlag = true;
+                    }
+                    else if(BT > ScoreTop && BT < ScoreD)
+                    {
+                        GetScoreFlag = true;
+                        //GetScoreFlag = !GetScoreFlag;
+                    }
+                }
+                if(GetScoreFlag)
+                {
+                    $(".Score:eq("+a+")").remove();
+                    Score++;
+                    //clearInterval(Game);
+                    //clearInterval(GameMove);
+                }
+            }
+            //是否超边界
+            if(blockLeft < GameL || blockTop < GameU || blockR > GameR || blockD > GameD)
+            {
+                alert("你输了——点击确定重新开始");
+                ReloadGame();
+                //clearInterval(Game);
+                //clearInterval(GameMove);
+            }
+        }
+        function BlockMove()
+        {
+            switch(num)
+            {
+                case 0:
+                    $("#block").css("left","-="+speed+"px");
+                    $("#PickUp").css("left","-="+speed+"px");
+                    $("#Direction").text("当前行走方向: 左 ←");
+                    break;
+                case 1:
+                    $("#block").css("top","-="+speed+"px");
+                    $("#PickUp").css("top","-="+speed+"px");
+                    $("#Direction").text("当前行走方向: 上 ↑");
+                    break;
+                case 2:
+                    $("#block").css("left","+="+speed+"px");
+                    $("#PickUp").css("left","+="+speed+"px");
+                    $("#Direction").text("当前行走方向: 右 →");
+                    break;
+                case 3:
+                    $("#block").css("top","+="+speed+"px");
+                    $("#PickUp").css("top","+="+speed+"px");
+                    $("#Direction").text("当前行走方向: 下 ↓");
+                    break;
+            }
+        }
+        $(document).keydown(function(event)
+        {
+            //console.log(event.keyCode);
+            switch(event.keyCode)
+            {
+                //左(A)[第一个case的值是字母，第二个的值是方向键]
+                case 65:
+                case 37:
+                    //$("#me").css("left","-=1px");
+                    num = 0;
+                    break;
+                //上(W)[第一个case的值是字母，第二个的值是方向键]
+                case 87:
+                case 38:
+                    //$("#me").css("top","-=1px");
+                    num = 1;
+                    break;
+                //右(D)[第一个case的值是字母，第二个的值是方向键]
+                case 68:
+                case 39:
+                    //$("#me").css("left","+=1px");
+                    num = 2;
+                    break;
+                //下(S)[第一个case的值是字母，第二个的值是方向键]
+                case 83:
+                case 40:
+                    //$("#me").css("top","+=1px");
+                    num = 3;
+                    break;
+            }
+        });
+    </script>
+</html>
